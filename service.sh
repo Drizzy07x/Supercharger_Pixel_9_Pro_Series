@@ -4,12 +4,19 @@
 # Developed by: Drizzy_07
 # Target Device: komodo (Google Pixel 9 Pro XL)
 # Architecture: Tensor G4 | 16GB LPDDR5X | UFS 4.0
+# Optimized for: Android 16 (Evolution X)
 # =============================================================
 
-# --- 0. INITIALIZATION & LOGGING ENGINE ---
-# Wait for SystemUI and ROM services to stabilize
-sleep 90
+# --- 0. DYNAMIC BOOT DETECTION ---
+# Wait until the system reports boot is 100% complete
+until [ "$(getprop sys.boot_completed)" = "1" ]; do
+    sleep 2
+done
 
+# Extra 10s grace period for SystemUI and services to settle
+sleep 10
+
+# --- 1. INITIALIZATION & LOGGING ENGINE ---
 MOD_DIR="/data/adb/modules/p9pxl_supercharger"
 LOG_FILE="$MOD_DIR/debug.log"
 PROP_FILE="$MOD_DIR/module.prop"
@@ -21,7 +28,7 @@ echo "   Developer: Drizzy_07 | Device: komodo" >> "$LOG_FILE"
 echo "===============================================" >> "$LOG_FILE"
 echo "BOOT_TIME: $(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG_FILE"
 
-# Hardware Metric: SoC Temperature
+# Hardware Metric: SoC Temperature (Tensor G4)
 TEMP_RAW=$(cat /sys/class/power_supply/battery/temp)
 echo "🌡️ SOC_TEMP: $((TEMP_RAW / 10)).$((TEMP_RAW % 10))°C" >> "$LOG_FILE"
 
@@ -41,28 +48,28 @@ run_tweak() {
 
 echo "--- DEPLOYING OPTIMIZATIONS ---" >> "$LOG_FILE"
 
-# --- 1. MEMORY & DALVIK (16GB RAM TUNING) ---
-# Optimizing for high-capacity multitasking
+# --- 2. MEMORY & DALVIK (16GB RAM TUNING) ---
+# Tailored for high-capacity multitasking
 run_tweak "Dalvik HeapStartSize (32M)" "resetprop dalvik.vm.heapstartsize 32m"
 run_tweak "Dalvik GrowthLimit (512M)" "resetprop dalvik.vm.heapgrowthlimit 512m"
 run_tweak "Dalvik HeapSize (1G)" "resetprop dalvik.vm.heapsize 1g"
 run_tweak "Swappiness (60)" "echo 60 > /proc/sys/vm/swappiness"
 
-# --- 2. THERMAL & POWER MANAGEMENT ---
-# Balancing performance with hardware longevity
+# --- 3. THERMAL & POWER MANAGEMENT ---
+# Balancing performance with hardware longevity (Tensor G4)
 run_tweak "Power Bias Policy 0" "echo 1 > /sys/devices/system/cpu/cpufreq/policy0/powersave_bias"
 run_tweak "Power Bias Policy 4" "echo 1 > /sys/devices/system/cpu/cpufreq/policy4/powersave_bias"
 run_tweak "Power Bias Policy 7" "echo 1 > /sys/devices/system/cpu/cpufreq/policy7/powersave_bias"
 
-# --- 3. UI FLUIDITY & GRAPHICS ---
+# --- 4. UI FLUIDITY & GRAPHICS ---
 # Enhancing 120Hz LTPO response and SkiaVK rendering
 run_tweak "Disable Dithering" "resetprop persist.sys.use_dithering 0"
 run_tweak "Force HW UI" "resetprop persist.sys.ui.hw 1"
 run_tweak "Renderer SkiaVK" "resetprop debug.hwui.renderer skiavk"
 run_tweak "Touch Responsiveness" "settings put system touch_responsiveness 1"
 
-# --- 4. STORAGE I/O (UFS 4.0 OPTIMIZATION) ---
-# Leveraging high-speed storage for zero-lag loading
+# --- 5. STORAGE I/O (UFS 4.0 OPTIMIZATION) ---
+# Faster game loading and zero-lag app installations
 for queue in /sys/block/sd*/queue; do
     run_tweak "I/O Scheduler (none) for $queue" "echo none > $queue/scheduler"
     run_tweak "Read-Ahead (512KB) for $queue" "echo 512 > $queue/read_ahead_kb"
@@ -70,16 +77,15 @@ for queue in /sys/block/sd*/queue; do
     echo "0" > "$queue/iostats"
 done
 
-# --- 5. SYSTEM CLEANUP & NETWORK ---
+# --- 6. SYSTEM CLEANUP & NETWORK ---
 # Reducing idle drain and background telemetry
 settings put global wifi_scan_interval_ms 300000
 settings put global mobile_data_always_on 0
 run_tweak "Disable Statsd" "resetprop ro.statsd.enable false"
 run_tweak "Disable Live Logcat" "resetprop logcat.live disable"
 
-# --- 6. AUTOMATED MAINTENANCE ---
-# Performing database VACUUM and triggering ART compiler
-# Note: Background DexOpt can take time; executed as sub-process
+# --- 7. AUTOMATED MAINTENANCE ---
+# Database VACUUM and ART compiler triggered in background
 (
     for db in $(find /data/data -name "*.db"); do
         sqlite3 "$db" "VACUUM; REINDEX;" 2>/dev/null
@@ -88,7 +94,7 @@ run_tweak "Disable Live Logcat" "resetprop logcat.live disable"
     echo "[🛠️] MAINTENANCE: SQLite & ART Job Completed" >> "$LOG_FILE"
 ) &
 
-# --- 7. DYNAMIC MAGISK DASHBOARD ---
+# --- 8. DYNAMIC MAGISK DASHBOARD ---
 # Real-time status update for the Magisk UI
 VAL_HEAP=$(getprop dalvik.vm.heapgrowthlimit)
 VAL_SWAP=$(cat /proc/sys/vm/swappiness)
