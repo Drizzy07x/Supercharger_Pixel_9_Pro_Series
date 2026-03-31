@@ -26,17 +26,13 @@ echo "===============================================" > "$LOG_FILE"
 echo "   SUPERCHARGER v1.5 HARDWARE DIAGNOSTIC" >> "$LOG_FILE"
 echo "   Developer: Drizzy_07 | Device: komodo" >> "$LOG_FILE"
 echo "===============================================" >> "$LOG_FILE"
-echo "BOOT_TIME: $(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG_FILE"
 
 # Hardware Metric: SoC Temperature (Tensor G4)
 TEMP_RAW=$(cat /sys/class/power_supply/battery/temp)
 echo "🌡️ SOC_TEMP: $((TEMP_RAW / 10)).$((TEMP_RAW % 10))°C" >> "$LOG_FILE"
-
-# Hardware Metric: RAM Snapshot (16GB LPDDR5X)
 echo "💾 INITIAL_RAM_STATUS:" >> "$LOG_FILE"
 free -m >> "$LOG_FILE"
 
-# Task Execution Wrapper for Debugging
 run_tweak() {
     $2 2>>"$LOG_FILE"
     if [ $? -eq 0 ]; then
@@ -46,7 +42,10 @@ run_tweak() {
     fi
 }
 
-echo "--- DEPLOYING OPTIMIZATIONS ---" >> "$LOG_FILE"
+# --- 2. KERNEL & NETWORK EFFICIENCY (New) ---
+# Race to Sleep: Reduce modem active time
+run_tweak "TCP Fast Open" "echo 3 > /proc/sys/net/ipv4/tcp_fastopen"
+run_tweak "TCP Low Latency" "echo 1 > /proc/sys/net/ipv4/tcp_low_latency"
 
 # --- 2. KERNEL & NETWORK EFFICIENCY ---
 # Race to Sleep: Reduce modem active time on 5G/Wi-Fi 7
@@ -89,7 +88,6 @@ done
 
 # --- 7. SYSTEM CLEANUP & NETWORK ---
 settings put global wifi_scan_interval_ms 300000
-settings put global mobile_data_always_on 0
 run_tweak "Disable Statsd" "resetprop ro.statsd.enable false"
 run_tweak "Disable Live Logcat" "resetprop logcat.live disable"
 
@@ -123,6 +121,4 @@ sed -i "s/^description=.*/description=$STATUS/" "$PROP_FILE"
 
 echo "===============================================" >> "$LOG_FILE"
 echo "   DEPLOYMENT COMPLETE - ENJOY THE SPEED" >> "$LOG_FILE"
-echo "===============================================" >> "$LOG_FILE"
-
 exit 0
