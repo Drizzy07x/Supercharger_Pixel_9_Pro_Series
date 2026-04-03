@@ -44,7 +44,7 @@ Strictly designed for devices running the **Tensor G4** processor:
 * Google Pixel 9 Pro
 * Google Pixel 9 Pro XL
 * Google Pixel 9 Pro Fold
-* *Support: Android 14 / Android 15 (Stock & Custom ROMs)*
+* *Support: Android 14 / Android 16 (Stock & Custom ROMs)*
 
 ---
 
