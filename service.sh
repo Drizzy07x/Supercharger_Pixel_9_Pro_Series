@@ -1,7 +1,7 @@
 #!/system/bin/sh
 # =============================================================
-# PIXEL 9 PRO SERIES SUPERCHARGER v1.6 STABLE
-# Intelligent Pivot & Deep Audit - Developed by: Drizzy_07
+# PIXEL 9 PRO SERIES SUPERCHARGER v2.0-STABLE
+# Maximum Efficiency Architecture - Developed by: Drizzy_07
 # =============================================================
 
 MODDIR=${0%/*}
@@ -35,7 +35,7 @@ verify_prop() {
 # --- 2. LOG INITIALIZATION ---
 if [ ! -f "$LOG_FILE" ]; then touch "$LOG_FILE"; chmod 0666 "$LOG_FILE"; fi
 echo "===============================================" > "$LOG_FILE"
-echo "   SUPERCHARGER v1.6 STABLE DEEP AUDIT" >> "$LOG_FILE"
+echo "   SUPERCHARGER v2.0-STABLE DEEP AUDIT" >> "$LOG_FILE"
 echo "   Device: Pixel 9 Pro XL (Zumapro/Tensor G4)" >> "$LOG_FILE"
 echo "   Date: $(date)" >> "$LOG_FILE"
 echo "===============================================" >> "$LOG_FILE"
@@ -43,9 +43,9 @@ echo "===============================================" >> "$LOG_FILE"
 # --- 3. BOOT DETECTION ---
 until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 2; done
 sleep 30 
-echo "[✅] System ready. Deploying Smart Engine..." >> "$LOG_FILE"
+echo "[✅] System ready. Deploying v2.0 Efficiency Engines..." >> "$LOG_FILE"
 
-# --- 4. LEGACY 1.5.1 & 16GB RAM PROFILE ---
+# --- 4. LEGACY SYSTEM & 16GB RAM PROFILE ---
 echo "" >> "$LOG_FILE"
 echo "[🧠] SYSTEM & RAM AUDIT:" >> "$LOG_FILE"
 
@@ -63,7 +63,7 @@ verify_prop "UI Renderer" "debug.hwui.renderer" "skiavk"
 verify_prop "Touch Latency" "persist.sys.touch.latency" "0"
 verify_prop "Hardware UI" "persist.sys.ui.hw" "1"
 
-# --- 5. SMART STORAGE & VIRTUAL MEMORY ENGINE ---
+# --- 5. SMART STORAGE ENGINE (v2.0) ---
 echo "" >> "$LOG_FILE"
 echo "[⚡] VIRTUAL MEMORY & STORAGE AUDIT:" >> "$LOG_FILE"
 
@@ -75,17 +75,20 @@ verify_tweak "VFS Cache Pressure" "/proc/sys/vm/vfs_cache_pressure" "60"
 verify_tweak "VM Dirty Ratio" "/proc/sys/vm/dirty_ratio" "20"
 verify_tweak "VM Swappiness" "/proc/sys/vm/swappiness" "30"
 
+# Storage Application (Read Ahead + IO Stats Disable)
 for dev in sda sdb sdc; do
     if [ -d "/sys/block/$dev" ]; then
         echo none > "/sys/block/$dev/queue/scheduler"
         echo 1024 > "/sys/block/$dev/queue/read_ahead_kb"
+        echo 0 > "/sys/block/$dev/queue/iostats" 2>/dev/null
         
         verify_tweak "UFS Scheduler ($dev)" "/sys/block/$dev/queue/scheduler" "none"
         verify_tweak "UFS Read Ahead ($dev)" "/sys/block/$dev/queue/read_ahead_kb" "1024"
+        verify_tweak "UFS IO Stats ($dev)" "/sys/block/$dev/queue/iostats" "0"
     fi
 done
 
-# --- 6. SMART NETWORK ENGINE ---
+# --- 6. SMART NETWORK ENGINE (v2.0) ---
 echo "" >> "$LOG_FILE"
 echo "[🌐] NETWORK AUDIT:" >> "$LOG_FILE"
 
@@ -95,12 +98,18 @@ echo "cubic" > /proc/sys/net/ipv4/tcp_congestion_control
 echo 1 > /proc/sys/net/ipv4/tcp_tw_reuse
 echo 3 > /proc/sys/net/ipv4/tcp_fastopen
 
+# Advanced Mobile Data Buffers
+echo "4096 87380 16777216" > /proc/sys/net/ipv4/tcp_rmem
+echo "4096 16384 16777216" > /proc/sys/net/ipv4/tcp_wmem
+
 verify_tweak "Network Qdisc" "/proc/sys/net/core/default_qdisc" "fq"
 verify_tweak "TCP Congestion" "/proc/sys/net/ipv4/tcp_congestion_control" "cubic"
 verify_tweak "TCP Socket Reuse" "/proc/sys/net/ipv4/tcp_tw_reuse" "1"
 verify_tweak "TCP Fast Open" "/proc/sys/net/ipv4/tcp_fastopen" "3"
+verify_tweak "TCP Read Buffer" "/proc/sys/net/ipv4/tcp_rmem" "87380"
+verify_tweak "TCP Write Buffer" "/proc/sys/net/ipv4/tcp_wmem" "16384"
 
-# --- 7. SMART IRQ BALANCE ---
+# --- 7. SMART IRQ BALANCE (Android 16 Extraction Method) ---
 echo "" >> "$LOG_FILE"
 echo "[🚧] SMART IRQ AFFINITY AUDIT:" >> "$LOG_FILE"
 
@@ -109,17 +118,23 @@ echo "[PASS] IRQ Balancer: Daemon stopped" >> "$LOG_FILE"
 
 IRQ_EFF=0; IRQ_MID=0; IRQ_PERF=0
 
+# Default all IRQs to Efficiency Cores (Mask 7f)
 for irq in /proc/irq/*; do
     [ -f "$irq/smp_affinity" ] && echo "7f" > "$irq/smp_affinity" 2>/dev/null && IRQ_EFF=$((IRQ_EFF + 1))
 done
 
-for irq in /proc/irq/*; do
-    if grep -q -E "ufshc|pcie|modem|wlan" "$irq/name" 2>/dev/null; then
-        echo "70" > "$irq/smp_affinity" 2>/dev/null
+# Parse /proc/interrupts to extract exact IRQ numbers for Mid-Cores (Storage & Network)
+for irq_num in $(grep -iE "ufshcd|exynos-pcie|dhdpcie" /proc/interrupts 2>/dev/null | awk -F: '{print $1}' | tr -d ' '); do
+    if [ -f "/proc/irq/$irq_num/smp_affinity" ]; then
+        echo "70" > "/proc/irq/$irq_num/smp_affinity" 2>/dev/null
         IRQ_MID=$((IRQ_MID + 1))
     fi
-    if grep -q -E "touch|goodix|sec_ts" "$irq/name" 2>/dev/null; then
-        echo "f0" > "$irq/smp_affinity" 2>/dev/null
+done
+
+# Parse /proc/interrupts to extract exact IRQ number for Perf-Cores (Touchpanel)
+for irq_num in $(grep -iE "synaptics_tcm" /proc/interrupts 2>/dev/null | awk -F: '{print $1}' | tr -d ' '); do
+    if [ -f "/proc/irq/$irq_num/smp_affinity" ]; then
+        echo "f0" > "/proc/irq/$irq_num/smp_affinity" 2>/dev/null
         IRQ_PERF=$((IRQ_PERF + 1))
     fi
 done
@@ -133,9 +148,9 @@ update_dashboard() {
     T_RAW=$(cat /sys/class/power_supply/battery/temp)
     T_UI="$((T_RAW / 10)).$((T_RAW % 10))°C"
     if grep -q "FAIL" "$LOG_FILE"; then
-        STATUS="Status: [⚠️] v1.6 | 🌡️ $T_UI | Audit Issue"
+        STATUS="Status: [⚠️] v2.0-STABLE | 🌡️ $T_UI | Audit Issue"
     else
-        STATUS="Status: [🚀] v1.6 STABLE | 🛡️ All Pass | 🌡️ $T_UI"
+        STATUS="Status: [🚀] v2.0-STABLE | 🛡️ All Pass | 🌡️ACTUAL TEMP $T_UI"
     fi
     sed -i "s/^description=.*/description=$STATUS/" "$PROP_FILE"
 }
