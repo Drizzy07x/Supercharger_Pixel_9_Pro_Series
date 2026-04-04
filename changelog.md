@@ -1,31 +1,36 @@
-# Changelog
+# 📑 Changelog - Pixel 9 Pro XL Supercharger
 
-All notable changes to the **Pixel 9 Pro Series Supercharger** project will be documented in this file.
-
-## [2.0 Stable] - 2026-04-03
-
-### 🚀 Major Highlights
-* **Android 16 GKI Ready:** Fully adapted to the new Generic Kernel Image security restrictions in Android 16.
-* **Thermal Efficiency Victory:** A/B testing on PCMark Work 3.0 proves v2.0 completely eliminates the thermal throttling spikes present in the stock kernel, maintaining a flat temperature line under heavy loads.
-* **I/O Speed Boost:** Achieved 22,098 in PCMark Writing tests, explicitly outperforming stock UFS speeds.
-
-### ✨ Added
-* **Android 16 Smart IRQ Extraction:** Added a new dynamic parsing method that reads directly from `/proc/interrupts` to bypass Android 16's strict hidden-directory permissions.
-* **5G Elasticity TCP Buffers:** Injected massive `tcp_rmem` and `tcp_wmem` buffers specifically calculated to handle 5G packet loss and cell-tower handoffs seamlessly while moving.
-* **Zero I/O Stats Overhead:** Implemented a new storage application tweak that forces `iostats` to `0` across `sda`, `sdb`, and `sdc` UFS blocks, saving background CPU cycles.
-
-### 🔄 Changed
-* **Touchpanel Routing:** Re-routed the Tensor G4 Touchpanel (`synaptics_tcm`) strictly to the Performance Cores (Mask `f0`) for flawless, zero-latency 120Hz scrolling.
-* **Storage & Network Routing:** Pinned UFS Storage (`ufshcd`) and the 5G/Wi-Fi Modems (`exynos-pcie`, `dhdpcie`) strictly to the Mid-Cores (Mask `70`) to prevent background tasks from waking up the Prime core.
-
-### 🗑️ Removed
-* **ZRAM Algorithm Injection:** Removed the forced `lz4` compression tweak. Deep kernel auditing revealed Google hard-locked the Tensor G4's ZRAM to their proprietary `lz77eh` algorithm in Android 16. Removing this prevents silent background kernel rejections and keeps the `debug.log` 100% accurate.
+All notable changes to the **Supercharger** project will be documented in this file.
 
 ---
 
-## [1.6 Stable] - Previous Release
-### ✨ Added
-* Initial "Intelligent Hardware Architecture" implementation.
-* 16GB RAM Profile optimization (Dalvik VM tweaks).
-* Baseline Smart IRQ Balance for Android 14/15.
-* 
+## [v2.1 STABLE] - 2026-04-04
+### 🚀 Major Architecture Overhaul
+* **Migrated Memory Tweaks to `system.prop`:** Moved `dalvik.vm` heap configurations from late-stage shell injection (`service.sh`) to early-boot injection. This prevents the **SIGABRT (Signal 6) Zygote64** crashes caused by hot-swapping VM parameters on Android 16.
+* **Stable 16GB RAM Profile:** Successfully implemented a 1024MB Max Heap size, allowing the Pixel 9 Pro XL to fully utilize its physical memory without UI stutter or background app kills.
+
+### 🛠️ Refinements & Fixes
+* **Vulkan Renderer Removal:** Deprecated the forced `skiavk` (Vulkan) injection. Reverting to the native crDroid OpenGL/SkiaGL backend resolved the "Reliable surface detection" errors and fixed UI jank.
+* **Smart IRQ Balancing v2:** Optimized interrupt masks specifically for the **Tensor G4 (Zumapro)**. 
+    * Touch Panel (`synaptics_tcm`) now has exclusive access to Prime Cores.
+    * Network and UFS interrupts isolated to Mid Cores to maintain thermal efficiency.
+* **TCP Stack Stabilization:** Locked congestion control to `cubic` to ensure 100% compatibility with Stock and Custom kernels while maintaining high-burst network buffers (16MB).
+* **Enhanced Audit Engine:** Added "Read-Only" property verification in `service.sh` to monitor the success of `system.prop` injections without interfering with the system server.
+
+### 🧹 Cleanup
+* Removed experimental LMKD (Low Memory Killer) tweaks that caused system instability on Android 16 QPR2.
+* Consolidated UFS 4.0 block optimizations across `sda`, `sdb`, and `sdc` nodes.
+
+---
+
+## [v2.0] - 2026-03-31
+### ✨ Initial Tensor G4 Release
+* **Introduction of Smart IRQ Balance:** First implementation of manual interrupt affinity for Pixel 9 series.
+* **UFS 4.0 Supercharging:** Initial implementation of `none` scheduler and `read_ahead` optimizations.
+* **Smart Network Engine:** Deployment of `fq` qdisc and increased TCP window sizes.
+* **Maintenance Automation:** Added background SQLite vacuuming and reindexing for app database health.
+
+---
+
+> **Reflecting on v2.1:** This update marks the move from "Experimental" to "Production-Ready." By understanding the boot-sequence of Android 16, we've achieved maximum performance without compromising the integrity of the system framework.
+> 
