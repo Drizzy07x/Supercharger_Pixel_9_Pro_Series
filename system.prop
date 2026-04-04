@@ -1,0 +1,4 @@
+# Pixel 9 Pro XL 16GB RAM Profile
+dalvik.vm.heapstartsize=32m
+dalvik.vm.heapgrowthlimit=512m
+dalvik.vm.heapsize=1024m
