@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # =============================================================
-# PIXEL 9 PRO SERIES SUPERCHARGER v2.1-BETA.3
+# PIXEL 9 PRO SERIES SUPERCHARGER v2.1-STABLE
 # Maximum Efficiency Architecture - Developed by: Drizzy_07
 # =============================================================
 
@@ -43,7 +43,7 @@ echo "===============================================" >> "$LOG_FILE"
 # --- 3. BOOT DETECTION ---
 until [ "$(getprop sys.boot_completed)" = "1" ]; do sleep 2; done
 sleep 30 
-echo "[✅] System ready. Deploying v2.1-B3 Engines..." >> "$LOG_FILE"
+echo "[✅] System ready. Deploying v2.1-STABLE Engines..." >> "$LOG_FILE"
 
 # --- 4. EARLY BOOT AUDIT (Verifying system.prop) ---
 echo "" >> "$LOG_FILE"
@@ -54,7 +54,7 @@ verify_prop "Dalvik Heap Growth" "dalvik.vm.heapgrowthlimit" "512m"
 verify_prop "Dalvik Heap Size" "dalvik.vm.heapsize" "1024m"
 verify_prop "Touch Latency" "persist.sys.touch.latency" "0"
 
-# --- 5. SMART STORAGE ENGINE (v2.0) ---
+# --- 5. SMART STORAGE ENGINE (v2.1) ---
 echo "" >> "$LOG_FILE"
 echo "[⚡] VIRTUAL MEMORY & STORAGE AUDIT:" >> "$LOG_FILE"
 
@@ -133,9 +133,9 @@ update_dashboard() {
     T_RAW=$(cat /sys/class/power_supply/battery/temp)
     T_UI="$((T_RAW / 10)).$((T_RAW % 10))°C"
     if grep -q "FAIL" "$LOG_FILE"; then
-        STATUS="Status: [⚠️] v2.1-B3 | 🌡️ $T_UI | Audit Issue"
+        STATUS="Status: [⚠️] v2.1-STABLE | 🌡️ $T_UI | Audit Issue"
     else
-        STATUS="Status: [🚀] v2.1-B3 | 🛡️ All Pass | 🌡️ $T_UI"
+        STATUS="Status: [🚀] v2.1-STABLE | 🛡️ All Pass | 🌡️ $T_UI"
     fi
     sed -i "s/^description=.*/description=$STATUS/" "$PROP_FILE"
 }
