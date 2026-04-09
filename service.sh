@@ -57,6 +57,20 @@ safe_write_if_needed() {
     return 1
 }
 
+verify_prop() {
+    local label="$1"
+    local prop="$2"
+    local expected="$3"
+    local current
+
+    current="$(getprop "$prop")"
+    if [ "$current" = "$expected" ]; then
+        log_line "[PASS] $label: $current"
+    else
+        log_line "[FAIL] $label: Expected $expected, got ${current:-<empty>}"
+    fi
+}
+
 get_battery_temp_decic() {
     local raw
 
@@ -82,7 +96,7 @@ format_temp_label() {
     local frac
 
     if [ -z "$decic" ]; then
-        echo "🌡️ temp unavailable"
+        echo "temp unavailable"
         return 0
     fi
 
@@ -91,19 +105,7 @@ format_temp_label() {
     if [ "$frac" -lt 0 ]; then
         frac=$((frac * -1))
     fi
-    echo "🌡️ ${whole}.${frac}C"
-}
-
-get_dashboard_status() {
-    local temp_decic="$1"
-    local temp_ui
-
-    temp_ui="$(format_temp_label "$temp_decic")"
-    if grep -q "FAIL" "$LOG_FILE" 2>/dev/null; then
-        echo "⚠️ Status: v2.2-STABLE | $temp_ui | Critical issue detected"
-    else
-        echo "🚀 Status: v2.2-STABLE | $temp_ui | All critical checks passed"
-    fi
+    echo "${whole}.${frac}C"
 }
 
 abs_diff_decic() {
@@ -118,6 +120,18 @@ abs_diff_decic() {
     echo "$diff"
 }
 
+get_dashboard_status() {
+    local temp_decic="$1"
+    local temp_ui
+
+    temp_ui="$(format_temp_label "$temp_decic")"
+    if grep -q "FAIL" "$LOG_FILE" 2>/dev/null; then
+        echo "Status: [WARN] v2.3-BETA.1 | ${temp_ui} | Critical issue detected"
+    else
+        echo "Status: [OK] v2.3-BETA.1 | ${temp_ui} | All critical checks passed"
+    fi
+}
+
 update_dashboard() {
     local force_log="$1"
     local temp_decic="$2"
@@ -128,13 +142,14 @@ update_dashboard() {
     current_line="$(grep '^description=' "$PROP_FILE" 2>/dev/null)"
 
     if [ "$current_line" = "description=$status" ]; then
+        if [ "$force_log" = "1" ]; then
+            log_line "[PASS] Dashboard: description already up to date"
+        fi
         return 0
     fi
 
     if sed -i "s/^description=.*/description=$status/" "$PROP_FILE" 2>/dev/null; then
-        if [ "$force_log" = "1" ]; then
-            log_line "[PASS] Dashboard: description updated"
-        fi
+        log_line "[PASS] Dashboard: description updated"
         return 0
     fi
 
@@ -175,6 +190,7 @@ start_temp_dashboard_updater() {
 wait_for_full_boot() {
     local boot_wait=0
 
+    log_line "[INFO] Waiting for full Android boot..."
     until [ "$(getprop sys.boot_completed)" = "1" ] || [ "$boot_wait" -ge 180 ]; do
         sleep 2
         boot_wait=$((boot_wait + 2))
@@ -198,6 +214,7 @@ wait_for_full_boot() {
     fi
 
     sleep 10
+    log_line "[PASS] System ready: post-boot grace period complete"
     return 0
 }
 
@@ -222,6 +239,89 @@ has_active_swap() {
     return 1
 }
 
+get_active_scheduler() {
+    local content="$1"
+    echo "$content" | sed -n 's/.*\[\([^]]*\)\].*/\1/p'
+}
+
+set_scheduler_if_available() {
+    local scheduler_path="$1"
+    local desired="$2"
+    local label="$3"
+    local current
+    local active
+
+    if [ ! -e "$scheduler_path" ]; then
+        log_line "[SKIP] $label: scheduler node missing"
+        return 1
+    fi
+
+    if [ ! -w "$scheduler_path" ]; then
+        log_line "[SKIP] $label: scheduler node not writable"
+        return 1
+    fi
+
+    current="$(safe_read "$scheduler_path")"
+    active="$(get_active_scheduler "$current")"
+
+    if [ "$active" = "$desired" ]; then
+        log_line "[PASS] $label: already set to $desired"
+        return 0
+    fi
+
+    case "$current" in
+        *"$desired"*)
+            if echo "$desired" > "$scheduler_path" 2>/dev/null; then
+                current="$(safe_read "$scheduler_path")"
+                active="$(get_active_scheduler "$current")"
+                if [ "$active" = "$desired" ]; then
+                    log_line "[PASS] $label: applied $desired"
+                    return 0
+                fi
+                log_line "[FAIL] $label: scheduler stayed on ${active:-unknown}"
+                return 1
+            fi
+            log_line "[FAIL] $label: scheduler write rejected"
+            return 1
+            ;;
+        *)
+            log_line "[SKIP] $label: '$desired' scheduler not available"
+            return 1
+            ;;
+    esac
+}
+
+is_relevant_block_device() {
+    local base="$1"
+    local dev_path="$2"
+
+    case "$base" in
+        dm-*|loop*|ram*|zram*|md*|sr*|fd*)
+            return 1
+            ;;
+    esac
+
+    [ -d "$dev_path/queue" ] || return 1
+    [ -e "$dev_path/device" ] || return 1
+
+    return 0
+}
+
+apply_vm_tuning() {
+    log_line ""
+    log_line "[INFO] VIRTUAL MEMORY AUDIT:"
+
+    safe_write_if_needed "/proc/sys/vm/vfs_cache_pressure" "60" "VFS Cache Pressure"
+    safe_write_if_needed "/proc/sys/vm/dirty_background_ratio" "5" "VM Dirty Background Ratio"
+    safe_write_if_needed "/proc/sys/vm/dirty_ratio" "12" "VM Dirty Ratio"
+
+    if has_active_swap; then
+        safe_write_if_needed "/proc/sys/vm/swappiness" "30" "VM Swappiness"
+    else
+        log_line "[SKIP] VM Swappiness: no active swap or zram detected"
+    fi
+}
+
 apply_page_cluster() {
     log_line ""
     log_line "[INFO] PAGE CLUSTER AUDIT:"
@@ -231,6 +331,84 @@ apply_page_cluster() {
     else
         log_line "[SKIP] VM Page Cluster: no active swap or zram detected"
     fi
+}
+
+apply_block_tuning() {
+    local dev
+    local base
+    local processed=0
+    local skipped=0
+
+    log_line ""
+    log_line "[INFO] BLOCK I/O AUDIT:"
+
+    for dev in /sys/block/*; do
+        [ -d "$dev" ] || continue
+        base="$(basename "$dev")"
+
+        if ! is_relevant_block_device "$base" "$dev"; then
+            skipped=$((skipped + 1))
+            log_line "[SKIP] Block Device ($base): not a physical target for tuning"
+            continue
+        fi
+
+        processed=$((processed + 1))
+        log_line "[INFO] Block Device ($base): processing"
+        set_scheduler_if_available "$dev/queue/scheduler" "none" "Block Scheduler ($base)"
+        safe_write_if_needed "$dev/queue/read_ahead_kb" "256" "Block Read Ahead ($base)"
+
+        if [ -e "$dev/queue/iostats" ]; then
+            safe_write_if_needed "$dev/queue/iostats" "0" "Block IO Stats ($base)"
+        else
+            log_line "[SKIP] Block IO Stats ($base): node missing"
+        fi
+    done
+
+    log_line "[PASS] Block Device Scan: processed $processed devices, skipped $skipped"
+}
+
+network_value_available() {
+    local path="$1"
+    local token="$2"
+    local current
+
+    current="$(safe_read "$path")"
+    case "$current" in
+        *"$token"*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+apply_network_tuning() {
+    local cc_available
+    local current_cc
+
+    log_line ""
+    log_line "[INFO] NETWORK AUDIT:"
+
+    safe_write_if_needed "/proc/sys/net/core/default_qdisc" "fq" "Network Qdisc"
+
+    cc_available="/proc/sys/net/ipv4/tcp_available_congestion_control"
+    if [ -e "$cc_available" ]; then
+        if network_value_available "$cc_available" "cubic"; then
+            safe_write_if_needed "/proc/sys/net/ipv4/tcp_congestion_control" "cubic" "TCP Congestion"
+        else
+            log_line "[SKIP] TCP Congestion: cubic not available"
+        fi
+    elif [ -e "/proc/sys/net/ipv4/tcp_congestion_control" ]; then
+        current_cc="$(safe_read /proc/sys/net/ipv4/tcp_congestion_control)"
+        if [ "$current_cc" = "cubic" ]; then
+            log_line "[PASS] TCP Congestion: already set to cubic"
+        else
+            log_line "[SKIP] TCP Congestion: availability unknown on this kernel"
+        fi
+    else
+        log_line "[SKIP] TCP Congestion: node missing"
+    fi
+
+    safe_write_if_needed "/proc/sys/net/ipv4/tcp_fastopen" "1" "TCP Fast Open"
 }
 
 set_irq_affinity_value() {
@@ -305,72 +483,49 @@ apply_selective_irq_affinity() {
     apply_irq_affinity "$TOUCH_IRQ_PATTERNS" "f0" "Touch/Input IRQ"
 }
 
-apply_uclamp_latency_sensitive() {
-    local group_name="$1"
-    local path=""
-    local candidate
-
-    for candidate in \
-        "/dev/cpuctl/$group_name/cpu.uclamp.latency_sensitive" \
-        "/dev/stune/$group_name/cpu.uclamp.latency_sensitive" \
-        "/sys/fs/cgroup/$group_name/cpu.uclamp.latency_sensitive"
-    do
-        if [ -e "$candidate" ]; then
-            path="$candidate"
-            break
-        fi
-    done
-
-    if [ -z "$path" ]; then
-        log_line "[SKIP] Uclamp Latency Sensitive ($group_name): path not found"
-        return 1
-    fi
-
-    if ! safe_write_if_needed "$path" "1" "Uclamp Latency Sensitive ($group_name)"; then
-        log_line "[SKIP] Uclamp Latency Sensitive ($group_name): kernel rejected or path unavailable"
-        return 1
-    fi
-
-    return 0
-}
-
 [ -f "$LOG_FILE" ] || touch "$LOG_FILE"
 chmod 0644 "$LOG_FILE" 2>/dev/null
 
 echo "===============================================" > "$LOG_FILE"
-echo "   SUPERCHARGER v2.2-STABLE DEEP AUDIT" >> "$LOG_FILE"
+echo "   SUPERCHARGER v2.3-BETA.1 DEEP AUDIT" >> "$LOG_FILE"
 echo "   Device: $MODEL ($DEVICE)" >> "$LOG_FILE"
 echo "   Date: $(date)" >> "$LOG_FILE"
 echo "===============================================" >> "$LOG_FILE"
 
-log_line "[INFO] Waiting for full Android boot..."
 if ! wait_for_full_boot; then
+    log_line ""
+    log_line "[INFO] DASHBOARD AUDIT:"
     update_dashboard "1" ""
     exit 0
 fi
 
-log_line "[OK] System ready. Deploying v2.2-STABLE profile..."
-
 TEMP_DECIC="$(get_battery_temp_decic)"
 if [ -n "$TEMP_DECIC" ]; then
-    log_line "[INFO] Battery Temp: $(format_temp_label "$TEMP_DECIC")"
+    log_line "[PASS] Battery Temp: $(format_temp_label "$TEMP_DECIC")"
 else
     log_line "[SKIP] Battery Temp: sensor unavailable or invalid"
 fi
 
-apply_page_cluster
-apply_selective_irq_affinity
-
 log_line ""
-log_line "[INFO] UCLAMP LATENCY SENSITIVE AUDIT:"
-apply_uclamp_latency_sensitive "foreground_window"
-apply_uclamp_latency_sensitive "top-app"
+log_line "[INFO] SYSTEM AND RAM AUDIT:"
+verify_prop "Dalvik Heap Start" "dalvik.vm.heapstartsize" "32m"
+verify_prop "Dalvik Heap Growth" "dalvik.vm.heapgrowthlimit" "512m"
+verify_prop "Dalvik Heap Size" "dalvik.vm.heapsize" "1024m"
+verify_prop "Touch Latency" "persist.sys.touch.latency" "0"
+
+apply_vm_tuning
+apply_page_cluster
+apply_block_tuning
+apply_network_tuning
+apply_selective_irq_affinity
 
 echo "" >> "$LOG_FILE"
 echo "===============================================" >> "$LOG_FILE"
 echo "   AUDIT COMPLETE - PROFILE ACTIVE" >> "$LOG_FILE"
 echo "===============================================" >> "$LOG_FILE"
 
+log_line ""
+log_line "[INFO] DASHBOARD AUDIT:"
 sleep 10
 update_dashboard "1" "$TEMP_DECIC"
 start_temp_dashboard_updater "$TEMP_DECIC"
