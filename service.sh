@@ -338,6 +338,7 @@ apply_block_tuning() {
     local base
     local processed=0
     local skipped=0
+    local processed_devices=""
 
     log_line ""
     log_line "[INFO] 💾 Block I/O Audit"
@@ -348,7 +349,28 @@ apply_block_tuning() {
 
         if ! is_relevant_block_device "$base" "$dev"; then
             skipped=$((skipped + 1))
-            log_line "[SKIP] Block Device ($base): skipped safely"
+            continue
+        fi
+
+        if [ -z "$processed_devices" ]; then
+            processed_devices="$base"
+        else
+            processed_devices="$processed_devices, $base"
+        fi
+    done
+
+    log_line "[INFO] Skipped virtual/stacked block devices: $skipped"
+    if [ -n "$processed_devices" ]; then
+        log_line "[INFO] Processing physical block devices: $processed_devices"
+    else
+        log_line "[INFO] Processing physical block devices: none"
+    fi
+
+    for dev in /sys/block/*; do
+        [ -d "$dev" ] || continue
+        base="$(basename "$dev")"
+
+        if ! is_relevant_block_device "$base" "$dev"; then
             continue
         fi
 
