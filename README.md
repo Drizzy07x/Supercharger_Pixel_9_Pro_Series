@@ -1,71 +1,129 @@
-# 🚀 Pixel 9 Pro Series Supercharger v2.3 STABLE
+# 🚀 Pixel 9 Pro Series Supercharger v2.4 STABLE
 
-[![Device](https://img.shields.io/badge/Device-Pixel_9_Pro_Series-blue?logo=google&logoColor=white)](https://store.google.com/)
+[![Device](https://img.shields.io/badge/Device-Pixel_9_Pro_Series-blue?logo=google&logoColor=white)](https://github.com/Drizzy07x/Supercharger_Pixel_9_Pro_Series)
 [![SoC](https://img.shields.io/badge/SoC-Tensor_G4-orange)](https://github.com/Drizzy07x/Supercharger_Pixel_9_Pro_Series)
-[![Version](https://img.shields.io/badge/Version-v2.3_STABLE-green)](https://github.com/Drizzy07x/Supercharger_Pixel_9_Pro_Series)
+[![Version](https://img.shields.io/badge/Version-v2.4_STABLE-green)](https://github.com/Drizzy07x/Supercharger_Pixel_9_Pro_Series/releases)
+[![Android](https://img.shields.io/badge/Android-16_QPR3_&_17-brightgreen)](https://github.com/Drizzy07x/Supercharger_Pixel_9_Pro_Series)
+[![Root](https://img.shields.io/badge/Root-Magisk_/_KernelSU-red)](https://github.com/Drizzy07x/Supercharger_Pixel_9_Pro_Series)
 
 **Developed by:** [Drizzy07x](https://github.com/Drizzy07x)  
 **Target devices:** Pixel 9 Pro XL (`komodo`), Pixel 9 Pro (`caiman`), Pixel 9 (`comet`)  
 **Channel:** Stable  
-**Compatibility:** Android 16, Magisk, KernelSU
+**Compatibility:** Android 16 QPR3+, Android 17, Magisk, KernelSU  
 
 ---
 
-## ⚡ Vision
-**Supercharger** is a systemless performance module designed specifically for the **Pixel 9 series** on **Tensor G4**. `v2.3 STABLE` focuses on a cleaner and more consistent daily-use profile: better balance, better audit visibility, and fewer risky or noisy tweaks.
+## ✨ Overview
+
+**Pixel 9 Pro Series Supercharger** is a systemless performance module built specifically for the **Pixel 9 series on Tensor G4**.
+
+The goal of this project is not to stack random tweaks or chase flashy benchmark gains.  
+The goal is to deliver a **cleaner, safer, and more consistent daily-use profile** that improves responsiveness while respecting battery life, thermal behavior, and boot safety.
+
+`v2.4 STABLE` continues that direction by preserving the current tuning profile and improving **compatibility, diagnostics, and cross-version resilience**.
 
 ---
 
-## 🧠 Stable Focus
+## 🎯 Project Goals
 
-### 1. 🔍 Better Audit Visibility
-- Cleaner `debug.log` structure
-- More readable dashboard status
-- Clear PASS / SKIP / FAIL reporting across all key areas
+- Improve day-to-day smoothness and responsiveness
+- Keep tuning selective and device-aware
+- Avoid unnecessary aggressive behavior
+- Preserve battery life and thermal consistency as much as possible
+- Maintain clean boot behavior and predictable runtime behavior
+- Improve logging, diagnostics, and long-term maintainability
 
-### 2. ⚙️ Safer Daily Tuning
-- Conservative VM profile
-- `vm.page-cluster=0` only when swap or zram is active
-- Selective IRQ affinity instead of global routing
-- Best-effort writes that skip safely on unsupported kernels
+---
 
-### 3. 🌡️ Low-Impact Runtime Behavior
-- Dashboard temperature refresh every 5 minutes
-- Description updates only when needed
-- Lower log noise for expected skips
+## 📱 Supported Devices
+
+This module is designed only for the **Pixel 9 series**:
+
+- **Pixel 9 Pro XL** (`komodo`)
+- **Pixel 9 Pro** (`caiman`)
+- **Pixel 9** (`comet`)
+
+Unsupported devices are not the target of this project.
+
+---
+
+## 🧠 What the Module Does
+
+Supercharger focuses on a conservative and well-audited profile rather than extreme tuning.
+
+### Current tuning direction
+- Conservative **virtual memory tuning**
+- Conditional `vm.page-cluster=0` when swap / zRAM is active
+- Selective **IRQ affinity** for:
+  - storage / UFS
+  - Wi-Fi / network
+  - touch / input
+- Safe **block I/O tuning** on valid physical devices only
+- Conservative **network tuning**
+- Read-only verification for selected system properties
+- Best-effort writes with graceful fallback on unsupported kernels
+
+---
+
+## 🛡️ Stability-First Design
+
+This module is intentionally built around **safe application and clean fallback behavior**.
+
+That means:
+- no global IRQ affinity
+- no forced CPU/GPU clocks
+- no aggressive governor manipulation
+- no uclamp experiments in the stable profile
+- no blind writes to unsupported nodes
+- no version hacks tied rigidly to a single Android build
+
+The stable profile is designed to feel **better in real use**, not just look louder on paper.
+
+---
+
+## 🔍 Compatibility & Diagnostics
+
+`v2.4 STABLE` improves compatibility across **Android 16 QPR3** and **Android 17** by relying on **real capability detection** instead of hardcoded version-specific logic.
+
+### The module now validates things like:
+- swap / zRAM availability
+- battery temperature node availability
+- `page-cluster` path support
+- block scheduler availability
+- scheduler option support
+- supported congestion control options
+- IRQ affinity target availability
+- writable kernel paths before applying values
+
+This makes the module more resilient across platform updates and kernel differences.
 
 ---
 
 ## 📊 Magisk Dashboard
-The dashboard:
 
-- waits for full boot
-- shows profile status plus battery temperature
-- refreshes temperature slowly and conditionally
+The Magisk dashboard is designed to stay informative without becoming noisy.
+
+### It does the following:
+- waits for full Android boot
+- shows module status and battery temperature
+- updates temperature slowly and conditionally
 - avoids unnecessary `module.prop` rewrites
-
-This keeps the module informative without creating needless background churn.
-
----
-
-## 🔍 Audit Log
-All actions are written to:
-
-`/data/adb/modules/p9pxl_supercharger/debug.log`
-
-You can inspect it with:
-
-```sh
-su -c cat /data/adb/modules/p9pxl_supercharger/debug.log
-```
+- keeps presentation clean and readable
 
 ---
 
-## ⚠️ Notes
-`v2.3 STABLE` is the polished daily-use profile built from the lessons of earlier beta tuning. It is intended to feel cleaner, safer, and more predictable across supported Pixel 9 Pro series devices.
+## ☕ Support the Project
 
----
-
-**Supercharge your Pixel. Refine the Tensor.** 🚀
+If you like the project and want to support future development, testing, and refinement, you can help here:
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/Drizzy_07)
+
+---
+
+## 📝 Audit Log
+
+All major actions are written to:
+
+```sh
+/data/adb/modules/p9pxl_supercharger/debug.log
+
