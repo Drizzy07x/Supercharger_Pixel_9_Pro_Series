@@ -1,4 +1,4 @@
-name: Supercharger Thermal Control Release
+name: Supercharger Auto-Release Engine
 
 on:
   push:
@@ -60,8 +60,8 @@ jobs:
             TITLE_SUFFIX=" (RC)"
           fi
 
-          ASSET_BASENAME="Supercharger_Thermal_Control-${TAG_NAME}"
-          RELEASE_TITLE="Supercharger Thermal Control ${TAG_NAME}${TITLE_SUFFIX}"
+          ASSET_BASENAME="Pixel-9-Pro-Series-Supercharger-${TAG_NAME}"
+          RELEASE_TITLE="Pixel 9 Pro Series Supercharger ${TAG_NAME}${TITLE_SUFFIX}"
 
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
           echo "module_version=${MODULE_VERSION}" >> "$GITHUB_OUTPUT"
@@ -92,13 +92,21 @@ jobs:
                ".github/**" \
                "dist/*" \
                "dist/**" \
+               ".gitignore" \
+               ".gitattributes" \
+               "README.md" \
+               "README.txt" \
+               "LICENSE" \
+               "changelog.md" \
+               "CHANGELOG.md" \
                "action.log" \
                "current_profile" \
                "last_action_status.txt" \
-               "*.DS_Store" \
-               "*.swp" \
+               "*.log" \
                "*.tmp" \
-               "*.log"
+               "*.swp" \
+               "*.bak" \
+               "*.DS_Store"
 
           sha256sum "${ZIP_PATH}" > "${SHA_PATH}"
 
@@ -194,13 +202,19 @@ jobs:
           ZIP_PATH="dist/${ASSET_BASENAME}.zip"
           SHA_PATH="${ZIP_PATH}.sha256"
 
-          PRERELEASE_ARGS=()
+          CREATE_ARGS=()
+          EDIT_ARGS=()
+
           if [[ "${PRERELEASE}" == "true" ]]; then
-            PRERELEASE_ARGS+=(--prerelease)
+            CREATE_ARGS+=(--prerelease)
+            EDIT_ARGS+=(--prerelease)
+          else
+            CREATE_ARGS+=(--latest)
           fi
 
           if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
             echo "Release ${TAG_NAME} already exists. Updating it."
+
             gh release upload "${TAG_NAME}" \
               "${ZIP_PATH}" \
               "${SHA_PATH}" \
@@ -209,14 +223,15 @@ jobs:
             gh release edit "${TAG_NAME}" \
               --title "${RELEASE_TITLE}" \
               --notes-file release-notes.md \
-              "${PRERELEASE_ARGS[@]}"
+              "${EDIT_ARGS[@]}"
           else
             echo "Release ${TAG_NAME} does not exist. Creating it."
+
             gh release create "${TAG_NAME}" \
               "${ZIP_PATH}" \
               "${SHA_PATH}" \
               --verify-tag \
-              --notes-file release-notes.md \
               --title "${RELEASE_TITLE}" \
-              "${PRERELEASE_ARGS[@]}"
+              --notes-file release-notes.md \
+              "${CREATE_ARGS[@]}"
           fi
