@@ -60,8 +60,8 @@ jobs:
             TITLE_SUFFIX=" (RC)"
           fi
 
-          ASSET_BASENAME="Pixel-9-Pro-Series-Supercharger-${TAG_NAME}"
-          RELEASE_TITLE="Pixel 9 Pro Series Supercharger ${TAG_NAME}${TITLE_SUFFIX}"
+          ASSET_BASENAME="Pixel-9-Series-Supercharger-${TAG_NAME}"
+          RELEASE_TITLE="Pixel 9 Series Supercharger ${TAG_NAME}${TITLE_SUFFIX}"
 
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
           echo "module_version=${MODULE_VERSION}" >> "$GITHUB_OUTPUT"
